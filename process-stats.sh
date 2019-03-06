@@ -18,11 +18,29 @@ if [ ${PIPESTATUS[0]} != 4 ]; then
     exit 1
 fi
 
-OPTS="hvp:o:r:"
-LONGOPTS="help,verbose,pid:,output:,rows:"
+OPTS="hvp:o:r:g:"
+LONGOPTS="help,verbose,pid:,output:,rows:,graph-generation-interval:,height:,min-width:"
 print_help() {
-	echo "Usage: $(basename $0) --pid <process ID> [--out base_filename] [--rows 100000] [--verbose]"
-	echo "E.g.: $(basename $0) --pid 12345 --out bla # produces bla.rrd, bla.sh and bla.svg"
+	cat <<EOF
+Usage: $(basename $0) --pid <process ID> [OTHER OPTIONS]
+E.g.: $(basename $0) --pid 12345 --out bla # produces bla.rrd, bla.sh and bla.svg
+
+  -p, --pid		the process ID of the target program (mandatory
+			argument)
+  -h, --help		this help message
+  -v, --verbose		show raw data on stdout
+  -o, --output		base filename for the generated .rrd, .sh and .svg files
+			(defaults to "out")
+  -r, --rows		maximum number of rows in the RRD file (defaults to
+			100000 and, at one datapoint per second, it's also the
+			maximum duration of recorded and visualised data)
+  -g, --graph-generation-interval
+			interval in seconds at which the SVG graph is being
+			regenerated during data collection (default: 60, set it
+			to 0 to disable)
+      --height		graph height (in pixels, default: 800)
+      --min-width	minimum graph width (default: 1000)
+EOF
 }
 ! PARSED=$(getopt --options=${OPTS} --longoptions=${LONGOPTS} --name "$0" -- "$@")
 if [ ${PIPESTATUS[0]} != 0 ]; then
@@ -35,6 +53,9 @@ VERBOSE="0"
 PID=""
 OUT="out"
 ROWS="100000"
+GRAPH_GENERATION_INTERVAL="60" # in seconds
+HEIGHT="800"
+MIN_WIDTH="1000"
 while true; do
 	case "$1" in
 		-h|--help)
@@ -55,6 +76,18 @@ while true; do
 			;;
 		-r|--rows)
 			ROWS="$2"
+			shift 2
+			;;
+		-g|--graph-generation-interval)
+			GRAPH_GENERATION_INTERVAL="$2"
+			shift 2
+			;;
+		--height)
+			HEIGHT="$2"
+			shift 2
+			;;
+		--min-width)
+			MIN_WIDTH="$2"
 			shift 2
 			;;
 		--)
@@ -99,7 +132,6 @@ draw_graph() {
 	# arithmetic expansion again
 	(( i = TOTAL_SECONDS, SECONDS = i % 60, i /= 60, MINUTES = i % 60, HOURS = i / 60 ))
 	DURATION_FORMATTED="$(printf "%d\\:%02d\\:%02d" ${HOURS} ${MINUTES} ${SECONDS})"
-	MIN_WIDTH=1000
 	WIDTH=${TOTAL_SECONDS}
 	[ ${WIDTH} -lt ${MIN_WIDTH} ] && WIDTH=${MIN_WIDTH}
 
@@ -119,7 +151,7 @@ COLOURS=(
 )
 LINE_WIDTH=1
 
-rrdtool graph "${OUT}.svg" \\
+rrdtool graph "${OUT}_tmp.svg" \\
 	--imgformat SVG \\
 	--title "${PROCESS_NAME} statistics (normalised to their maximum values)" \\
 	--watermark "$(date)" \\
@@ -130,7 +162,7 @@ rrdtool graph "${OUT}.svg" \\
 	--start ${START_TIME} \\
 	--end ${END_TIME} \\
 	--width ${WIDTH} \\
-	--height 800 \\
+	--height ${HEIGHT} \\
 	DEF:cpu="${OUT}.rrd":cpu:AVERAGE \\
 		VDEF:max_cpu=cpu,MAXIMUM \\
 		CDEF:norm_cpu=cpu,100,\*,max_cpu,/ \\
@@ -183,6 +215,10 @@ rrdtool graph "${OUT}.svg" \\
 	COMMENT:"Duration\\: ${DURATION_FORMATTED}\\n" \\
 	>/dev/null
 
+# let's make this file change an atomic operation to avoid image viewers trying
+# to show partial files during the periodic graph regeneration
+mv "${OUT}_tmp.svg" "${OUT}.svg"
+
 EOF
 
 	chmod 755 "${OUT}.sh"
@@ -204,12 +240,10 @@ rrdtool create "${OUT}.rrd" --step 1 \
 
 # don't interrupt the script on Ctrl+C (used to interrupt pidstat)
 trap '' INT
-echo -e "Press Ctrl+C to interrupt data collection, or wait until the target process ends.\n"
+echo "Press Ctrl+C to interrupt data collection, or wait until the target process ends."
 
 START_TIME="$(date +%s)"
-LINE_NO_MAX="40"
-LINE_NO="${LINE_NO_MAX}"
-GRAPH_GENERATION_INTERVAL="60" # in seconds
+LINE_NO="${LINES}" # special Bash var for the number of lines in the terminal
 
 # TODO: add voluntary context switches
 # we don't rely on pidstat column order, in case it varies between sysstat/kernel versions
@@ -243,8 +277,8 @@ pidstat -p ${PID} -h -H -u -d -r -s -w 1 | gawk '
 	fflush(stdout)
 }
 ' | while read LINE; do
-	[ "${LINE_NO}" = "${LINE_NO_MAX}" ] && LINE_NO=0 && {
-		[ "${VERBOSE}" = "1" ] && echo "timestamp %CPU RSS stack disk_read disk_write net_TX:net_RX";
+	[ "${LINE_NO}" = "${LINES}" ] && LINE_NO=0 && {
+		[ "${VERBOSE}" = "1" ] && echo -e "\ntimestamp %CPU RSS stack disk_read disk_write net_TX:net_RX\n";
 	}
 	# arithmetic expansion looks weird, doesn't it?
 	(( LINE_NO += 1 ))
@@ -252,7 +286,7 @@ pidstat -p ${PID} -h -H -u -d -r -s -w 1 | gawk '
 	[ "${VERBOSE}" = "1" ] && echo "${LINE} ${NET_DATA}"
 	rrdtool update "${OUT}.rrd" "$(echo -n ${LINE} | tr ' ' ':'):${NET_DATA}"
 	# can't wait until the end to see the data? have some periodic SVG refresh:
-	[ "$[$(echo ${LINE} | cut -d ' ' -f 1) % ${GRAPH_GENERATION_INTERVAL}]" = "0" ] && draw_graph
+	[[ "${GRAPH_GENERATION_INTERVAL}" != "0" && "$[$(echo ${LINE} | cut -d ' ' -f 1) % ${GRAPH_GENERATION_INTERVAL}]" = "0" ]] && draw_graph
 done
 
 # draw it one final time

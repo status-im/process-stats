@@ -12,13 +12,25 @@ Other requirements: Bash, gawk, getopt from "util-linux".
 
 ## How to use
 
-```bash
-process-stats.sh --pid <process ID> [--out base_filename] [--rows <maximum number of rows in the db (default: 100000)>] [--verbose]
-```
+```text
+Usage: process-stats.sh --pid <process ID> [OTHER OPTIONS]
+E.g.: process-stats.sh --pid 12345 --out bla # produces bla.rrd, bla.sh and bla.svg
 
-For example
-```bash
-process-stats.sh --pid 12345 --out bla # produces bla.rrd, bla.sh and bla.svg
+  -p, --pid		the process ID of the target program (mandatory
+			argument)
+  -h, --help		this help message
+  -v, --verbose		show raw data on stdout
+  -o, --output		base filename for the generated .rrd, .sh and .svg files
+			(defaults to "out")
+  -r, --rows		maximum number of rows in the RRD file (defaults to
+			100000 and, at one datapoint per second, it's also the
+			maximum duration of recorded and visualised data)
+  -g, --graph-generation-interval
+			interval in seconds at which the SVG graph is being
+			regenerated during data collection (default: 60, set it
+			to 0 to disable)
+      --height		graph height (in pixels, default: 800)
+      --min-width	minimum graph width (default: 1000)
 ```
 
 ### Real-life example
@@ -52,7 +64,7 @@ Now the memory leak is clear, while maintaining enough info about the serial nat
 
 Bonus feature: the SVG graph is regenerated every minute, during data
 collection, so you don't have to wait until the end to see what's what.
-Some image viewers (like [geeqie](http://geeqie.org/)) refresh the image
+Some image viewers (like [Geeqie](http://geeqie.org/)) refresh the image
 automatically when the file changes.
 
 ## TODO
