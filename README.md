@@ -4,9 +4,9 @@
 [![License: Apache](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 ![Stability: experimental](https://img.shields.io/badge/stability-experimental-orange.svg)
 
-Collect and visualise resource usage for a single Linux process.
+Collect and visualise resource usage statistics for a single Linux process.
 
-This script is a wrapper around `pidstat` (from the [sysstat][http://sebastien.godard.pagesperso-orange.fr/index.html] package), [NetHogs][https://github.com/raboof/nethogs] (which usually requires root access to capture network packages with libpcap) and [RRDtool][https://oss.oetiker.ch/rrdtool/].
+This script is a wrapper around `pidstat` (from the [sysstat](http://sebastien.godard.pagesperso-orange.fr/index.html) package), [NetHogs](https://github.com/raboof/nethogs) (which usually requires root access to capture network packages with libpcap) and [RRDtool](https://oss.oetiker.ch/rrdtool/).
 
 Other requirements: Bash, gawk, getopt from "util-linux".
 
@@ -48,7 +48,7 @@ I modified "nimbus3.sh" to divide the graph width by five, in order to show five
 
 ![nimbus3-short.svg](https://gist.githubusercontent.com/stefantalpalaru/04e3bdf9630cf19b65fb2878daa107b5/raw/a2291a0e7705e780f7cd0d21b85786a13b8fc3dc/nimbus3-short.svg?sanitize=true)
 
-Now the memory leak is clear, while maintaining enough info about the serial nature of the program.
+Now the memory leak is clear, while maintaining enough info about the serial nature of the program and its bottlenecks.
 
 ## TODO
 
@@ -66,4 +66,8 @@ or
 * Apache License, Version 2.0, ([LICENSE-APACHEv2](LICENSE-APACHEv2) or http://www.apache.org/licenses/LICENSE-2.0)
 
 at your option. These files may not be copied, modified, or distributed except according to those terms.
+
+## Homepage
+
+https://github.com/status-im/process-stats
 
