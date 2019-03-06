@@ -50,6 +50,11 @@ I modified "nimbus3.sh" to divide the graph width by five, in order to show five
 
 Now the memory leak is clear, while maintaining enough info about the serial nature of the program and its bottlenecks.
 
+Bonus feature: the SVG graph is regenerated every minute, during data
+collection, so you don't have to wait until the end to see what's what.
+Some image viewers (like [geeqie](http://geeqie.org/)) refresh the image
+automatically when the file changes.
+
 ## TODO
 
 - improve the colour scheme

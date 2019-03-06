@@ -90,84 +90,21 @@ net_data() {
 	echo -n "${DATA}"
 }
 
-###################
-# data collection #
-###################
-rrdtool create "${OUT}.rrd" --step 1 \
-	DS:cpu:GAUGE:5:U:U \
-	DS:rss:GAUGE:5:U:U \
-	DS:stack:GAUGE:5:U:U \
-	DS:disk_read:GAUGE:5:U:U \
-	DS:disk_write:GAUGE:5:U:U \
-	DS:net_tx:GAUGE:5:U:U \
-	DS:net_rx:GAUGE:5:U:U \
-	RRA:AVERAGE:0.5:1:${ROWS}
-
-# don't interrupt the script on Ctrl+C (used to interrupt pidstat)
-trap '' INT
-echo -e "Press Ctrl+C to interrupt data collection, or wait until the target process ends.\n"
-
-START_TIME="$(date +%s)"
-LINE_NO_MAX=40
-LINE_NO=${LINE_NO_MAX}
-
-# TODO: add voluntary context switches
-# we don't rely on pidstat column order, in case it varies between sysstat/kernel versions
-pidstat -p ${PID} -h -H -u -d -r -s -w 1 | gawk '
-/^#/ {
-	for(i = 1; i <= NF; i++) {
-		if($i == "%CPU") {
-			cpu = i - 1
-			continue
-		}
-		if($i == "RSS") {
-			rss = i - 1
-			continue
-		}
-		if($i == "StkRef") {
-			stack = i - 1
-			continue
-		}
-		if($i == "kB_rd/s") {
-			disk_read = i - 1
-			continue
-		}
-		if($i == "kB_wr/s") {
-			disk_write = i - 1
-			continue
-		}
-	}
-}
-/^[0-9]/ {
-	print $1, $cpu, $rss, $stack, $disk_read, $disk_write
-	fflush(stdout)
-}
-' | while read LINE; do
-	[ "${LINE_NO}" = "${LINE_NO_MAX}" ] && LINE_NO=0 && {
-		[ "${VERBOSE}" = "1" ] && echo "timestamp %CPU RSS stack disk_read disk_write net_TX:net_RX";
-	}
-	# arithmetic expansion looks weird, doesn't it?
-	(( LINE_NO += 1 ))
-	NET_DATA="$(net_data)"
-	[ "${VERBOSE}" = "1" ] && echo "${LINE} ${NET_DATA}"
-	rrdtool update "${OUT}.rrd" "$(echo -n ${LINE} | tr ' ' ':'):${NET_DATA}"
-done
-
-END_TIME="$(date +%s)"
-TOTAL_SECONDS="$[${END_TIME} - ${START_TIME} + 1]"
-# arithmetic expansion again
-(( i = TOTAL_SECONDS, SECONDS = i % 60, i /= 60, MINUTES = i % 60, HOURS = i / 60 ))
-DURATION_FORMATTED="$(printf "%d\\:%02d\\:%02d" ${HOURS} ${MINUTES} ${SECONDS})"
-MIN_WIDTH=1000
-WIDTH=${TOTAL_SECONDS}
-[ ${WIDTH} -lt ${MIN_WIDTH} ] && WIDTH=${MIN_WIDTH}
-
 ########################
 # SVG graph generation #
 ########################
+draw_graph() {
+	END_TIME="$(date +%s)"
+	TOTAL_SECONDS="$[${END_TIME} - ${START_TIME} + 1]"
+	# arithmetic expansion again
+	(( i = TOTAL_SECONDS, SECONDS = i % 60, i /= 60, MINUTES = i % 60, HOURS = i / 60 ))
+	DURATION_FORMATTED="$(printf "%d\\:%02d\\:%02d" ${HOURS} ${MINUTES} ${SECONDS})"
+	MIN_WIDTH=1000
+	WIDTH=${TOTAL_SECONDS}
+	[ ${WIDTH} -lt ${MIN_WIDTH} ] && WIDTH=${MIN_WIDTH}
 
-# We want a script here in order to easily modify the graph without collecting the data again.
-cat > "${OUT}.sh" <<EOF
+	# We want a script here in order to easily modify the graph without collecting the data again.
+	cat > "${OUT}.sh" <<EOF
 #!/bin/bash
 
 # RGB or RGBA
@@ -248,7 +185,77 @@ rrdtool graph "${OUT}.svg" \\
 
 EOF
 
-chmod 755 "${OUT}.sh"
-./"${OUT}.sh"
+	chmod 755 "${OUT}.sh"
+	./"${OUT}.sh"
+}
+
+###################
+# data collection #
+###################
+rrdtool create "${OUT}.rrd" --step 1 \
+	DS:cpu:GAUGE:5:U:U \
+	DS:rss:GAUGE:5:U:U \
+	DS:stack:GAUGE:5:U:U \
+	DS:disk_read:GAUGE:5:U:U \
+	DS:disk_write:GAUGE:5:U:U \
+	DS:net_tx:GAUGE:5:U:U \
+	DS:net_rx:GAUGE:5:U:U \
+	RRA:AVERAGE:0.5:1:${ROWS}
+
+# don't interrupt the script on Ctrl+C (used to interrupt pidstat)
+trap '' INT
+echo -e "Press Ctrl+C to interrupt data collection, or wait until the target process ends.\n"
+
+START_TIME="$(date +%s)"
+LINE_NO_MAX="40"
+LINE_NO="${LINE_NO_MAX}"
+GRAPH_GENERATION_INTERVAL="60" # in seconds
+
+# TODO: add voluntary context switches
+# we don't rely on pidstat column order, in case it varies between sysstat/kernel versions
+pidstat -p ${PID} -h -H -u -d -r -s -w 1 | gawk '
+/^#/ {
+	for(i = 1; i <= NF; i++) {
+		if($i == "%CPU") {
+			cpu = i - 1
+			continue
+		}
+		if($i == "RSS") {
+			rss = i - 1
+			continue
+		}
+		if($i == "StkRef") {
+			stack = i - 1
+			continue
+		}
+		if($i == "kB_rd/s") {
+			disk_read = i - 1
+			continue
+		}
+		if($i == "kB_wr/s") {
+			disk_write = i - 1
+			continue
+		}
+	}
+}
+/^[0-9]/ {
+	print $1, $cpu, $rss, $stack, $disk_read, $disk_write
+	fflush(stdout)
+}
+' | while read LINE; do
+	[ "${LINE_NO}" = "${LINE_NO_MAX}" ] && LINE_NO=0 && {
+		[ "${VERBOSE}" = "1" ] && echo "timestamp %CPU RSS stack disk_read disk_write net_TX:net_RX";
+	}
+	# arithmetic expansion looks weird, doesn't it?
+	(( LINE_NO += 1 ))
+	NET_DATA="$(net_data)"
+	[ "${VERBOSE}" = "1" ] && echo "${LINE} ${NET_DATA}"
+	rrdtool update "${OUT}.rrd" "$(echo -n ${LINE} | tr ' ' ':'):${NET_DATA}"
+	# can't wait until the end to see the data? have some periodic SVG refresh:
+	[ "$[$(echo ${LINE} | cut -d ' ' -f 1) % ${GRAPH_GENERATION_INTERVAL}]" = "0" ] && draw_graph
+done
+
+# draw it one final time
+draw_graph
 echo -e "\nYou can modify and run '${OUT}.sh' to generate a new '${OUT}.svg'."
 
