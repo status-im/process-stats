@@ -25,21 +25,21 @@ print_help() {
 Usage: $(basename $0) --pid <process ID> [OTHER OPTIONS]
 E.g.: $(basename $0) --pid 12345 --out bla # produces bla.rrd, bla.sh and bla.svg
 
-  -p, --pid		the process ID of the target program (mandatory
-			argument)
-  -h, --help		this help message
-  -v, --verbose		show raw data on stdout
-  -o, --output		base filename for the generated .rrd, .sh and .svg files
-			(defaults to "out")
-  -r, --rows		maximum number of rows in the RRD file (defaults to
-			100000 and, at one datapoint per second, it's also the
-			maximum duration of recorded and visualised data)
+  -p, --pid             the process ID of the target program (mandatory
+                        argument)
+  -h, --help            this help message
+  -v, --verbose         show raw data on stdout
+  -o, --output          base filename for the generated .rrd, .sh and .svg files
+                        (defaults to "out")
+  -r, --rows            maximum number of rows in the RRD file (defaults to
+                        100000 and, at one datapoint per second, it's also the
+                        maximum duration of recorded and visualised data)
   -g, --graph-generation-interval
-			interval in seconds at which the SVG graph is being
-			regenerated during data collection (default: 60, set it
-			to 0 to disable)
-      --height		graph height (in pixels, default: 800)
-      --min-width	minimum graph width (default: 1000)
+                        interval in seconds at which the SVG graph is being
+                        regenerated during data collection (default: 60, set it
+                        to 0 to disable)
+      --height          graph height (in pixels, default: 800)
+      --min-width       minimum graph width (default: 1000)
 EOF
 }
 ! PARSED=$(getopt --options=${OPTS} --longoptions=${LONGOPTS} --name "$0" -- "$@")
