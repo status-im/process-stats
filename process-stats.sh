@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (c) 2019 Status Research & Development GmbH. Licensed under
+# Copyright (c) 2019-2021 Status Research & Development GmbH. Licensed under
 # either of:
 # - Apache License, version 2.0
 # - MIT license
@@ -141,32 +141,42 @@ draw_graph() {
 
 # RGB or RGBA
 COLOURS=(
-	"#fc8d597F"
-	"#d73027"
+	"#7EB26D"
+	"#6ED0E0"
 	"#99d8c9"
-	"#23ff7f"
-	"#8c64007F"
-	"#91bfdb"
-	"#4575b47F"
+	"#E24D42"
+	"#EF843C"
+	"#1F78C1"
+	"#705DA0"
 )
 LINE_WIDTH=1
+MOVING_AVERAGE_INTERVAL=15 # seconds
+ALPHA=30 # used in area RGBA
 
 rrdtool graph "${OUT}_tmp.svg" \\
 	--imgformat SVG \\
-	--title "${PROCESS_NAME} statistics (normalised to their maximum values)" \\
+	--title "${PROCESS_NAME} statistics (normalised to their maximum values, \${MOVING_AVERAGE_INTERVAL}s moving average)" \\
 	--watermark "$(date)" \\
 	--vertical-label "% of maximum" \\
 	--slope-mode \\
 	--alt-y-grid \\
+	--left-axis-format "%.0lf%%" \\
 	--rigid \\
 	--start ${START_TIME} \\
 	--end ${END_TIME} \\
 	--width ${WIDTH} \\
 	--height ${HEIGHT} \\
+	--color CANVAS#181B1F \\
+	--color BACK#111217 \\
+	--color FONT#CCCCDC \\
 	DEF:cpu="${OUT}.rrd":cpu:AVERAGE \\
 		VDEF:max_cpu=cpu,MAXIMUM \\
-		CDEF:norm_cpu=cpu,100,\*,max_cpu,/ \\
-		AREA:norm_cpu\${COLOURS[0]}:"%CPU" \\
+		CDEF:norm_cpu=cpu,\${MOVING_AVERAGE_INTERVAL},TREND,100,\*,max_cpu,/ \\
+		LINE\${LINE_WIDTH}:norm_cpu\${COLOURS[0]}:"%CPU" \\
+		AREA:norm_cpu\${COLOURS[0]}\${ALPHA} \\
+		VDEF:cpu_avg=cpu,AVERAGE \\
+		CDEF:norm_cpu_avg=cpu,POP,cpu_avg,100,\*,max_cpu,/ \\
+		LINE0.5:norm_cpu_avg\${COLOURS[0]}:dashes \\
 		GPRINT:max_cpu:"(max\\: %.2lf%%\\g" \\
 		GPRINT:cpu:AVERAGE:", avg\\: %.2lf%%)" \\
 		COMMENT:"\\n" \\
@@ -186,29 +196,45 @@ rrdtool graph "${OUT}_tmp.svg" \\
 		COMMENT:"\\n" \\
 	DEF:net_tx="${OUT}.rrd":net_tx:AVERAGE \\
 		VDEF:max_net_tx=net_tx,MAXIMUM \\
-		CDEF:norm_net_tx=net_tx,100,\*,max_net_tx,/ \\
+		CDEF:norm_net_tx=net_tx,\${MOVING_AVERAGE_INTERVAL},TREND,100,\*,max_net_tx,/ \\
 		LINE\${LINE_WIDTH}:norm_net_tx\${COLOURS[3]}:"Net TX" \\
+		AREA:norm_net_tx\${COLOURS[3]}\${ALPHA} \\
+		VDEF:net_tx_avg=net_tx,AVERAGE \\
+		CDEF:norm_net_tx_avg=net_tx,POP,net_tx_avg,100,\*,max_net_tx,/ \\
+		LINE0.5:norm_net_tx_avg\${COLOURS[3]}:dashes \\
 		GPRINT:max_net_tx:"(max\\: %.2lf KB/s\\g" \\
 		GPRINT:net_tx:AVERAGE:", avg\\: %.2lf KB/s)" \\
 		COMMENT:"\\n" \\
 	DEF:net_rx="${OUT}.rrd":net_rx:AVERAGE \\
 		VDEF:max_net_rx=net_rx,MAXIMUM \\
-		CDEF:norm_net_rx=net_rx,100,\*,max_net_rx,/ \\
-		AREA:norm_net_rx\${COLOURS[4]}:"Net RX" \\
+		CDEF:norm_net_rx=net_rx,\${MOVING_AVERAGE_INTERVAL},TREND,100,\*,max_net_rx,/ \\
+		LINE\${LINE_WIDTH}:norm_net_rx\${COLOURS[4]}:"Net RX" \\
+		AREA:norm_net_rx\${COLOURS[4]}\${ALPHA} \\
+		VDEF:net_rx_avg=net_rx,AVERAGE \\
+		CDEF:norm_net_rx_avg=net_rx,POP,net_rx_avg,100,\*,max_net_rx,/ \\
+		LINE0.5:norm_net_rx_avg\${COLOURS[4]}:dashes \\
 		GPRINT:max_net_rx:"(max\\: %.2lf KB/s\\g" \\
 		GPRINT:net_rx:AVERAGE:", avg\\: %.2lf KB/s)" \\
 		COMMENT:"\\n" \\
 	DEF:disk_read="${OUT}.rrd":disk_read:AVERAGE \\
 		VDEF:max_disk_read=disk_read,MAXIMUM \\
-		CDEF:norm_disk_read=disk_read,100,\*,max_disk_read,/ \\
+		CDEF:norm_disk_read=disk_read,\${MOVING_AVERAGE_INTERVAL},TREND,100,\*,max_disk_read,/ \\
 		LINE\${LINE_WIDTH}:norm_disk_read\${COLOURS[5]}:"Disk read" \\
+		AREA:norm_disk_read\${COLOURS[5]}\${ALPHA} \\
+		VDEF:disk_read_avg=disk_read,AVERAGE \\
+		CDEF:norm_disk_read_avg=disk_read,POP,disk_read_avg,100,\*,max_disk_read,/ \\
+		LINE0.5:norm_disk_read_avg\${COLOURS[5]}:dashes \\
 		GPRINT:max_disk_read:"(max\\: %.2lf KB/s\\g" \\
 		GPRINT:disk_read:AVERAGE:", avg\\: %.2lf KB/s)" \\
 		COMMENT:"\\n" \\
 	DEF:disk_write="${OUT}.rrd":disk_write:AVERAGE \\
 		VDEF:max_disk_write=disk_write,MAXIMUM \\
-		CDEF:norm_disk_write=disk_write,100,\*,max_disk_write,/ \\
-		AREA:norm_disk_write\${COLOURS[6]}:"Disk write" \\
+		CDEF:norm_disk_write=disk_write,\${MOVING_AVERAGE_INTERVAL},TREND,100,\*,max_disk_write,/ \\
+		LINE\${LINE_WIDTH}:norm_disk_write\${COLOURS[6]}:"Disk write" \\
+		AREA:norm_disk_write\${COLOURS[6]}\${ALPHA} \\
+		VDEF:disk_write_avg=disk_write,AVERAGE \\
+		CDEF:norm_disk_write_avg=disk_write,POP,disk_write_avg,100,\*,max_disk_write,/ \\
+		LINE0.5:norm_disk_write_avg\${COLOURS[6]}:dashes \\
 		GPRINT:max_disk_write:"(max\\: %.2lf KB/s\\g" \\
 		GPRINT:disk_write:AVERAGE:", avg\\: %.2lf KB/s)" \\
 		COMMENT:"\\n" \\

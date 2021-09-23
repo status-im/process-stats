@@ -10,6 +10,8 @@ This script is a wrapper around `pidstat` (from the [sysstat](http://sebastien.g
 
 Other requirements: Bash, gawk, getopt from "util-linux".
 
+![example.svg](https://gist.githubusercontent.com/stefantalpalaru/001426d63b754e7badeeb6767adca5e5/raw/f23d083555dd71c3bfb5fd21cd4f0993df473a95/example.svg)
+
 ## How to use
 
 ```text
@@ -69,7 +71,6 @@ automatically when the file changes.
 
 ## TODO
 
-- improve the colour scheme
 - show voluntary context switches
 
 ## License
